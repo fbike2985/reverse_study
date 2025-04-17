@@ -5,6 +5,16 @@ import hashlib
 from Crypto.Cipher import DES3
 from Crypto.Util.Padding import pad
 import time
+import jpype
+
+jvmPath = jpype.getDefaultJVMPath()
+d = 'unidbg-android.jar'  # 对应jar地址
+# jpype.startJVM(jvmPath, "-ea", "-Djava.class.path=" + d + "")
+jpype.startJVM(jvmPath, "-Dfile.encoding=utf-8", "-Djava.class.path=" + d + "")  # 输出乱码时使用
+java = jpype.JClass("com.chezhiying.CheZhiYing")()  # 从com开始找到打包jar的类
+signature = java.sign()
+print(signature)
+
 
 def encode_3des(key, iv, plaintext):
     """
@@ -29,10 +39,13 @@ def encode_3des(key, iv, plaintext):
     encrypted_b64 = base64.b64encode(encrypted_bytes).decode('utf-8')
     return encrypted_b64
 
+
 def get_md5(str):
-    md5=hashlib.md5()
+    md5 = hashlib.md5()
     md5.update(str.encode('utf-8'))
     return md5.hexdigest()
+
+
 def dict_to_custom_string(data, wrapper, keys_order):
     """
     data: 字典
@@ -42,11 +55,12 @@ def dict_to_custom_string(data, wrapper, keys_order):
     middle = ''.join(f"{k}{data[k]}" for k in keys_order if k in data)
     return f"{wrapper}{middle}{wrapper}"
 
+
 keys = ["_appid", "appversion", "channelid", "pwd", "signkey", "type", "udid", "username"]
-uuid=str(uuid.uuid4())
+uuid = str(uuid.uuid4())
 nano_time = time.perf_counter_ns()
 
-key = "appapiche168comappapiche"  # 24字节长度
+key = signature[:24]
 iv = "appapich"  # 8字节长度
 plaintext = f"{uuid}|{nano_time}|391134"
 headers = {
@@ -57,8 +71,8 @@ headers = {
     "user-agent": "okhttp/3.14.9"
 }
 url = "https://dealercloudapi.che168.com/tradercloud/sealed/login/login.ashx"
-user="18320975327"
-pwd="1111111"
+user = "18320975327"
+pwd = "1111111"
 data = {
     "_appid": "atc.android",
     "_sign": "AFB212EB924E53A3885A570470889876",
@@ -72,11 +86,12 @@ data = {
 }
 
 udid = encode_3des(key, iv, plaintext)
-data['udid']=udid
+data['udid'] = udid
 
-_sign=get_md5(dict_to_custom_string(data, "W@oC!AH_6Ew1f6%8", keys))
-data['_sign']=_sign
+_sign = get_md5(dict_to_custom_string(data, "W@oC!AH_6Ew1f6%8", keys))
+data['_sign'] = _sign
 response = requests.post(url, headers=headers, data=data)
 
 print(response.text)
 print(response)
+jpype.shutdownJVM()  # 关闭JVM（注意，必须在所有子线程结束后再关闭，不用子线程调用加密方法会失败）
